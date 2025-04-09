@@ -76,9 +76,9 @@ Logs are stored in the `logs/` directory with comprehensive information about ea
 
 ## 🔜 Roadmap
 
-- [ ] Note-taking capabilities for meetings
-- [ ] Meeting analytics and statistics
-- [ ] Web interface with Flask
+- [x] Web interface with ~Flask~ Streamlit
+- [x] Meeting analytics and statistics
+- [ ] Add more exporters (e.g., CSV, JSON)
 - [ ] Integration with task management systems
 - [ ] Calendar event search functionality
 
