@@ -3,7 +3,12 @@ from src.utils.text_cleaner import clean_body_text
 import sys
 import io
 import logging
+import os
+import argparse
 from datetime import datetime
+
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
 
 # Fix console encoding for Unicode support
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -18,10 +23,20 @@ logging.basicConfig(
     ]
 )
 
+def parse_args():
+    """Parse command-line arguments"""
+    parser = argparse.ArgumentParser(description='Retrieve Outlook calendar events')
+    parser.add_argument('--days-back', type=int, default=1, help='Number of days to look back')
+    parser.add_argument('--days-forward', type=int, default=1, help='Number of days to look forward')
+    return parser.parse_args()
+
 def main():
     """Main entry point for the application"""
-    # Get today's events from Outlook
-    filtered_items = get_outlook_events(days_back=1, days_forward=1)
+    # Parse command line arguments
+    args = parse_args()
+    
+    # Get events from Outlook based on provided date range
+    filtered_items = get_outlook_events(days_back=args.days_back, days_forward=args.days_forward)
     
     # Process events
     events = []
