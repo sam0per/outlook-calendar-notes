@@ -2,40 +2,59 @@ import win32com.client
 from datetime import datetime, timedelta
 import logging
 
-def get_outlook_events(days_back=1, days_forward=1):
-    """Get Outlook calendar events within a date range"""
-    logging.info(f"Retrieving Outlook calendar events for range: -{days_back} to +{days_forward} days")
+class OutlookCalendarFetcher:
+    """Class to fetch calendar events from Outlook"""
     
-    try:
-        # Connect to Outlook
-        logging.info("Connecting to Outlook...")
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        namespace = outlook.GetNamespace("MAPI")
-        calendar = namespace.GetDefaultFolder(9)
+    def __init__(self):
+        """Initialize the Outlook connection"""
+        self.outlook = None
+        self.namespace = None
+        self.calendar = None
         
-        # Calculate date range
+        try:
+            self.outlook = win32com.client.Dispatch("Outlook.Application")
+            self.namespace = self.outlook.GetNamespace("MAPI")
+            self.calendar = self.namespace.GetDefaultFolder(9)  # 9 = olFolderCalendar
+        except Exception as e:
+            logging.error(f"Failed to initialize Outlook connection: {e}", exc_info=True)
+    
+    def fetch_events(self, start_date, end_date):
+        """Fetch events between the specified dates"""
+        if not all([self.outlook, self.namespace, self.calendar]):
+            logging.error("Outlook connection not available")
+            return []
+            
+        try:
+            # Format dates and create restriction
+            start_str = start_date.strftime("%d/%m/%Y %H:%M %p")
+            end_str = end_date.strftime("%d/%m/%Y %H:%M %p")
+            
+            # Get items
+            items = self.calendar.Items
+            items.Sort("[Start]")
+            items.IncludeRecurrences = True
+            
+            restriction = f"[Start] >= '{start_str}' AND [Start] < '{end_str}'"
+            logging.info(f"Formatted restriction: {restriction}")
+            
+            filtered_items = items.Restrict(restriction)
+            logging.info(f"Retrieved {filtered_items.Count if hasattr(filtered_items, 'Count') else '?'} items")
+            
+            # Convert to a list to make it easier to work with
+            events = []
+            for item in filtered_items:
+                events.append(item)
+            
+            return events
+            
+        except Exception as e:
+            logging.error(f"Error fetching Outlook events: {e}", exc_info=True)
+            return []
+            
+    def get_outlook_events(self, days_back=1, days_forward=1):
+        """Legacy method for backwards compatibility"""
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         start_date = today - timedelta(days=days_back)
         end_date = today + timedelta(days=days_forward)
-        logging.info(f"Date range set: {start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')}")
         
-        # Format dates and create restriction
-        start_str = start_date.strftime("%d/%m/%Y %H:%M %p")
-        end_str = end_date.strftime("%d/%m/%Y %H:%M %p")
-        
-        # Get items
-        items = calendar.Items
-        items.Sort("[Start]")
-        items.IncludeRecurrences = True
-        
-        restriction = f"[Start] >= '{start_str}' AND [Start] < '{end_str}'"
-        logging.info(f"Formatted restriction: {restriction}")
-        
-        filtered_items = items.Restrict(restriction)
-        logging.info(f"Retrieved {filtered_items.Count if hasattr(filtered_items, 'Count') else '?'} items")
-        
-        return filtered_items
-        
-    except Exception as e:
-        logging.error(f"Error accessing Outlook: {e}", exc_info=True)
-        return []
+        return self.fetch_events(start_date, end_date)
