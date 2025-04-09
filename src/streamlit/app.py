@@ -54,14 +54,23 @@ def get_events_df(days_back=7):
                 except:
                     pass  # Keep default "Unknown"
                 
-                # Extract other useful info
+                # More robust categories handling:
+                
+                # Get categories properly
+                categories = ""
+                if hasattr(event, 'categories'):
+                    if isinstance(event.categories, list):
+                        categories = ", ".join(event.categories)
+                    else:
+                        categories = event.categories
+                
                 events_data.append({
                     "subject": event.subject,
                     "start": start,
                     "end": end,
                     "duration": duration,
                     "organizer": organizer_name,
-                    "categories": ", ".join(event.categories) if hasattr(event, 'categories') and event.categories else "",
+                    "categories": categories,
                     "is_recurring": event.is_recurring if hasattr(event, 'is_recurring') else False,
                     "day_of_week": start.strftime("%A"),
                     "body": body_content[:200] + "..." if len(body_content) > 200 else body_content
@@ -93,22 +102,60 @@ def main():
     st.sidebar.header("Filters")
     days_back = st.sidebar.slider("Days to analyze", min_value=1, max_value=30, value=7)
     
-    # Load data
+    # Load data first to get categories
     with st.spinner("Fetching calendar data..."):
         try:
-            df = get_events_df(days_back)
-            if df.empty:
+            all_events_df = get_events_df(days_back)
+            if all_events_df.empty:
                 st.warning("No calendar events found in the selected period.")
                 return
         except Exception as e:
             st.error(f"Error fetching calendar data: {str(e)}")
             return
     
+    # Extract unique categories and prepare for multiselect
+    # Split categories that might contain multiple values
+    all_categories = set()
+    for cats in all_events_df['categories'].dropna():
+        if cats:  # Check if not empty
+            # Split by comma and strip whitespace
+            for cat in [c.strip() for c in cats.split(',')]:
+                if cat:  # Only add non-empty categories
+                    all_categories.add(cat)
+    
+    all_categories = sorted(list(all_categories))
+    
+    # Set default to all categories except OOO
+    default_categories = [cat for cat in all_categories if cat != "OOO"]
+    
+    # Category filter in sidebar
+    st.sidebar.header("Category Filter")
+    selected_categories = st.sidebar.multiselect(
+        "Select categories to include:",
+        options=all_categories,
+        default=default_categories
+    )
+    
+    # Filter dataframe based on selected categories
+    if selected_categories:
+        # Filter to only include rows with at least one selected category
+        mask = all_events_df['categories'].apply(
+            lambda cats: any(cat in str(cats).split(',') for cat in selected_categories) if pd.notna(cats) else False
+        )
+        df = all_events_df[mask].copy()
+    else:
+        # If nothing selected, include all
+        df = all_events_df.copy()
+    
+    # Show how many events were filtered
+    st.sidebar.info(f"Showing {len(df)} of {len(all_events_df)} events")
+    
     # Show total time metrics
     total_hours = df["duration"].sum()
     total_meetings = len(df)
     avg_duration = df["duration"].mean()
     
+    # Rest of your visualization code remains the same
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Hours in Meetings", f"{total_hours:.1f}")
     col2.metric("Number of Meetings", total_meetings)
