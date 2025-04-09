@@ -37,7 +37,9 @@ outlook-calendar-notes/
 ├── src/                      # Source code
 │   ├── calendar/             # Calendar interaction
 │   ├── utils/                # Utility functions
-│   └── exporters/            # Output formatters
+│   ├── exporters/            # Output formatters
+│   └── streamlit/            # Streamlit app (if applicable)
+├── requirements.txt          # Python dependencies
 ├── tests/                    # Unit tests
 ├── data/                     # Saved outputs/cache
 ├── logs/                     # Log files
