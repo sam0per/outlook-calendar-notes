@@ -5,4 +5,8 @@ src/calendar/__pycache__/
 src/calendar/.pytest_cache/
 src/utils/__pycache__/
 src/utils/.pytest_cache/
+src/exporters/__pycache__/
+src/exporters/.pytest_cache/
+exports/
 *.code-workspace
+*.log
