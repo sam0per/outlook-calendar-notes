@@ -1,0 +1,2 @@
+pywin32>=223  # For accessing Windows COM objects (Outlook)
+argparse      # For parsing command-line arguments
