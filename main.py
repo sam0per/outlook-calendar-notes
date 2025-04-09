@@ -1,4 +1,4 @@
-from src.calendar.fetcher import get_outlook_events
+from src.calendar.fetcher import OutlookCalendarFetcher
 from src.utils.text_cleaner import clean_body_text
 import sys
 import io
@@ -35,14 +35,15 @@ def main():
     # Parse command line arguments
     args = parse_args()
     
-    # Get events from Outlook based on provided date range
-    filtered_items = get_outlook_events(days_back=args.days_back, days_forward=args.days_forward)
+    # Initialize the fetcher and get events
+    fetcher = OutlookCalendarFetcher()
+    filtered_items = fetcher.get_outlook_events(days_back=args.days_back, days_forward=args.days_forward)
     
     # Process events
     events = []
     for item in filtered_items:
         # Skip events with OOO category
-        if item.Categories and "OOO" in item.Categories:
+        if hasattr(item, 'Categories') and item.Categories and "OOO" in item.Categories:
             logging.info(f"Skipping OOO event: {item.Subject}")
             continue
         
@@ -51,9 +52,9 @@ def main():
             "Subject": item.Subject,
             "Start": item.Start,
             "End": item.End,
-            "Location": item.Location,
-            "Body": clean_body_text(item.Body),
-            "Categories": item.Categories
+            "Location": item.Location if hasattr(item, 'Location') else "",
+            "Body": clean_body_text(item.Body) if hasattr(item, 'Body') else "",
+            "Categories": item.Categories if hasattr(item, 'Categories') else ""
         }
         events.append(event)
     
