@@ -1,0 +1,7 @@
+logs/
+src/__pycache__/
+src/.pytest_cache/
+src/calendar/__pycache__/
+src/calendar/.pytest_cache/
+src/utils/__pycache__/
+src/utils/.pytest_cache/
