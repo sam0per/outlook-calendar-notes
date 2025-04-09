@@ -1,4 +1,5 @@
 import win32com.client
+import pythoncom  # Add this import
 from datetime import datetime, timedelta
 import logging
 
@@ -12,6 +13,9 @@ class OutlookCalendarFetcher:
         self.calendar = None
         
         try:
+            # Initialize COM for this thread
+            pythoncom.CoInitialize()
+            
             self.outlook = win32com.client.Dispatch("Outlook.Application")
             self.namespace = self.outlook.GetNamespace("MAPI")
             self.calendar = self.namespace.GetDefaultFolder(9)  # 9 = olFolderCalendar
@@ -21,8 +25,15 @@ class OutlookCalendarFetcher:
     def fetch_events(self, start_date, end_date):
         """Fetch events between the specified dates"""
         if not all([self.outlook, self.namespace, self.calendar]):
-            logging.error("Outlook connection not available")
-            return []
+            # Try to initialize again in case this is called from a different thread
+            try:
+                pythoncom.CoInitialize()
+                self.outlook = win32com.client.Dispatch("Outlook.Application")
+                self.namespace = self.outlook.GetNamespace("MAPI")
+                self.calendar = self.namespace.GetDefaultFolder(9)
+            except Exception as e:
+                logging.error(f"Failed to reinitialize Outlook connection: {e}", exc_info=True)
+                return []
             
         try:
             # Format dates and create restriction
@@ -50,6 +61,13 @@ class OutlookCalendarFetcher:
         except Exception as e:
             logging.error(f"Error fetching Outlook events: {e}", exc_info=True)
             return []
+        
+    def __del__(self):
+        """Cleanup COM resources when the object is destroyed"""
+        try:
+            pythoncom.CoUninitialize()
+        except:
+            pass
             
     def get_outlook_events(self, days_back=1, days_forward=1):
         """Legacy method for backwards compatibility"""

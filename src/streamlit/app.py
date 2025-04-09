@@ -21,55 +21,64 @@ def calculate_duration(start, end):
 
 def get_events_df(days_back=7):
     """Fetch events and convert to DataFrame with calculated fields"""
-    fetcher = OutlookCalendarFetcher()
-
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days_back)
-
-    events = fetcher.fetch_events(start_date, end_date)
-
-    # Convert to DataFrame with useful fields
-    events_data = []
-    for event in events:
-        try:
-            # Get start and end times
-            start = event.start.astimezone(pytz.timezone('UTC'))
-            end = event.end.astimezone(pytz.timezone('UTC'))
-
-            # Clean the body content
-            body_content = clean_body_text(event.body) if event.body else ""
-
-            # Calculate duration
-            duration = calculate_duration(start, end)
-
-            # Safely extract organizer name
-            organizer_name = "Unknown"
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()  # Initialize COM for this thread
+        
+        fetcher = OutlookCalendarFetcher()
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days_back)
+        events = fetcher.fetch_events(start_date, end_date)
+        
+        # Convert to DataFrame with useful fields
+        events_data = []
+        for event in events:
             try:
-                if hasattr(event.organizer, 'name'):
-                    organizer_name = event.organizer.name
-                elif isinstance(event.organizer, str):
-                    organizer_name = event.organizer
-            except:
-                pass  # Keep default "Unknown"
-
-            # Extract other useful info
-            events_data.append({
-                "subject": event.subject,
-                "start": start,
-                "end": end,
-                "duration": duration,
-                "organizer": organizer_name,
-                "categories": ", ".join(event.categories) if hasattr(event, 'categories') and event.categories else "",
-                "is_recurring": event.is_recurring if hasattr(event, 'is_recurring') else False,
-                "day_of_week": start.strftime("%A"),
-                "body": body_content[:200] + "..." if len(body_content) > 200 else body_content
-            })
-        except Exception as e:
-            print(f"Error processing event: {str(e)}")
-            # Continue with next event rather than failing entire process
-            continue
-
-    return pd.DataFrame(events_data)
+                # Get start and end times
+                start = event.start.astimezone(pytz.timezone('UTC'))
+                end = event.end.astimezone(pytz.timezone('UTC'))
+                
+                # Clean the body content
+                body_content = clean_body_text(event.body) if event.body else ""
+                
+                # Calculate duration
+                duration = calculate_duration(start, end)
+                
+                # Safely extract organizer name
+                organizer_name = "Unknown"
+                try:
+                    if hasattr(event.organizer, 'name'):
+                        organizer_name = event.organizer.name
+                    elif isinstance(event.organizer, str):
+                        organizer_name = event.organizer
+                except:
+                    pass  # Keep default "Unknown"
+                
+                # Extract other useful info
+                events_data.append({
+                    "subject": event.subject,
+                    "start": start,
+                    "end": end,
+                    "duration": duration,
+                    "organizer": organizer_name,
+                    "categories": ", ".join(event.categories) if hasattr(event, 'categories') and event.categories else "",
+                    "is_recurring": event.is_recurring if hasattr(event, 'is_recurring') else False,
+                    "day_of_week": start.strftime("%A"),
+                    "body": body_content[:200] + "..." if len(body_content) > 200 else body_content
+                })
+            except Exception as e:
+                print(f"Error processing event: {str(e)}")
+                # Continue with next event rather than failing entire process
+                continue
+                
+        return pd.DataFrame(events_data)
+    
+    finally:
+        # Always uninitialize COM when we're done
+        try:
+            pythoncom.CoUninitialize()
+        except:
+            pass
 
 def main():
     st.set_page_config(
