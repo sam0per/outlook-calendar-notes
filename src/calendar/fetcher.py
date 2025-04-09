@@ -18,8 +18,8 @@ def get_outlook_events(days_back=1, days_forward=1):
         end_date = today + timedelta(days=days_forward)
         
         # Format dates and create restriction
-        start_str = start_date.strftime("%m/%d/%Y %H:%M %p")
-        end_str = end_date.strftime("%m/%d/%Y %H:%M %p")
+        start_str = start_date.strftime("%d/%m/%Y %H:%M %p")
+        end_str = end_date.strftime("%d/%m/%Y %H:%M %p")
         
         # Get items
         items = calendar.Items
