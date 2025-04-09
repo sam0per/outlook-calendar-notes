@@ -1,2 +1,6 @@
-pywin32>=223  # For accessing Windows COM objects (Outlook)
-argparse      # For parsing command-line arguments
+pywin32>=223        # For accessing Windows COM objects (Outlook)
+argparse            # For parsing command-line arguments
+streamlit>=1.24.0   # For creating web apps
+pandas>=1.5.0       # For data manipulation and analysis
+plotly>=5.13.0      # For creating interactive plots
+numpy>=1.23.0       # For numerical operations
