@@ -62,6 +62,15 @@ For specific date ranges:
 python main.py --days-back 3 --days-forward 7
 ```
 
+This will fetch events from the last 3 days to the next 7 days.  
+You can also export the results to a JSON file by using the `--export-json` flag.
+    
+```bash
+python main.py --days-back 3 --days-forward 7 --export-json
+```
+
+The exported file will be saved in the `exports/` directory with a timestamp.
+
 ## 🔧 Development
 
 The modular architecture makes it easy to extend:
@@ -78,7 +87,7 @@ Logs are stored in the `logs/` directory with comprehensive information about ea
 
 - [x] Web interface with ~Flask~ Streamlit
 - [x] Meeting analytics and statistics
-- [ ] Add more exporters (e.g., CSV, JSON)
+- [x] Add exporter to JSON format
 - [ ] Integration with task management systems
 - [ ] Calendar event search functionality
 
