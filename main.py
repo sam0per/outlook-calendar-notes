@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import argparse
+import time
 from datetime import datetime
 
 # Create logs directory if it doesn't exist
@@ -32,10 +33,38 @@ def parse_args():
     parser.add_argument('--export-dir', type=str, default='exports', help='Directory to save exported JSON files')
     return parser.parse_args()
 
+def sync_outlook():
+    """Force Outlook to synchronize before fetching events"""
+    try:
+        import win32com.client
+        logging.info("Initializing Outlook and forcing synchronization...")
+        
+        # Connect to Outlook
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        namespace = outlook.GetNamespace("MAPI")
+        
+        # Access calendar folder to trigger sync
+        calendar = namespace.GetDefaultFolder(9)  # 9 is the calendar folder
+        
+        # Force sync by accessing items
+        _ = calendar.Items.Count
+        
+        # Add a small delay to allow sync to complete
+        time.sleep(2)
+        
+        logging.info("Outlook synchronization completed")
+        return True
+    except Exception as e:
+        logging.error(f"Error synchronizing Outlook: {str(e)}")
+        return False
+
 def main():
     """Main entry point for the application"""
     # Parse command line arguments
     args = parse_args()
+    
+    # Synchronize Outlook first
+    sync_outlook()
     
     # Initialize the fetcher and get events
     fetcher = OutlookCalendarFetcher()
@@ -95,17 +124,9 @@ def main():
         except Exception as e:
             logging.error(f"Failed to export events: {str(e)}")
         
-    # Display events
+    # Just display summary instead of all event details
     if events:
-        print(f"\nFound {len(events)} calendar events:")
-        for i, event in enumerate(events, 1):
-            print(f"\n--- Event {i} ---")
-            print(f"Subject: {event['Subject']}")
-            print(f"Start: {event['Start']}")
-            print(f"End: {event['End']}")
-            print(f"Location: {event['Location']}")
-            print(f"Body: {event['Body']}")
-            print(f"Categories: {event['Categories']}")
+        print(f"\nFound {len(events)} calendar events.")
     else:
         print("No events found or error occurred")
 
