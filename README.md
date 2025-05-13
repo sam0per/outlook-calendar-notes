@@ -66,7 +66,7 @@ This will fetch events from the last 3 days to the next 7 days.
 You can also export the results to a JSON file by using the `--export-json` flag.
     
 ```bash
-python main.py --days-back 3 --days-forward 7 --export-json
+python main.py --days-back 7 --days-forward 2 --export-json
 ```
 
 The exported file will be saved in the `exports/` directory with a timestamp.
