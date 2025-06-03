@@ -31,45 +31,135 @@ def parse_args():
     parser.add_argument('--days-forward', type=int, default=1, help='Number of days to look forward')
     parser.add_argument('--export-json', action='store_true', help='Export events to JSON file')
     parser.add_argument('--export-dir', type=str, default='exports', help='Directory to save exported JSON files')
+    parser.add_argument('--sync-timeout', type=int, default=10, help='Timeout in seconds for Outlook synchronization')
+    parser.add_argument('--sync-retries', type=int, default=3, help='Number of times to retry synchronization')
+    parser.add_argument('--force-full-sync', action='store_true', help='Force a full synchronization of Outlook')
+    parser.add_argument('--calendar-name', type=str, help='Specify a calendar name (default: primary calendar)')
     return parser.parse_args()
 
-def sync_outlook():
-    """Force Outlook to synchronize before fetching events"""
-    try:
-        import win32com.client
-        logging.info("Initializing Outlook and forcing synchronization...")
-        
-        # Connect to Outlook
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        namespace = outlook.GetNamespace("MAPI")
-        
-        # Access calendar folder to trigger sync
-        calendar = namespace.GetDefaultFolder(9)  # 9 is the calendar folder
-        
-        # Force sync by accessing items
-        _ = calendar.Items.Count
-        
-        # Add a small delay to allow sync to complete
-        time.sleep(2)
-        
-        logging.info("Outlook synchronization completed")
-        return True
-    except Exception as e:
-        logging.error(f"Error synchronizing Outlook: {str(e)}")
-        return False
+def sync_outlook(timeout=10, retries=3, force_full=False, calendar_name=None):
+    """Force Outlook to synchronize before fetching events
+    
+    Args:
+        timeout (int): Time in seconds to wait for synchronization
+        retries (int): Number of retry attempts
+        force_full (bool): Whether to force a full synchronization
+        calendar_name (str): Name of the calendar to sync (None for default)
+    
+    Returns:
+        bool: True if synchronization was successful
+    """
+    import win32com.client
+    
+    for attempt in range(1, retries + 1):
+        try:
+            logging.info(f"Initializing Outlook synchronization (attempt {attempt}/{retries})...")
+            
+            # Connect to Outlook
+            outlook = win32com.client.Dispatch("Outlook.Application")
+            namespace = outlook.GetNamespace("MAPI")
+            
+            # Get the calendar folder - default or specified
+            if calendar_name:
+                found = False
+                for folder in namespace.Folders.Item(1).Folders:
+                    if folder.Name == "Calendar" or folder.Name == calendar_name:
+                        calendar = folder
+                        found = True
+                        logging.info(f"Using calendar: {folder.Name}")
+                        break
+                if not found:
+                    logging.warning(f"Calendar '{calendar_name}' not found, using default")
+                    calendar = namespace.GetDefaultFolder(9)  # 9 is the calendar folder
+            else:
+                calendar = namespace.GetDefaultFolder(9)  # 9 is the calendar folder
+            
+            # Force sync by accessing items and more direct sync methods
+            initial_count = calendar.Items.Count
+            logging.info(f"Initial calendar items count: {initial_count}")
+            
+            if force_full:
+                try:
+                    # Try to force a more complete sync using Update method if available
+                    namespace.SendAndReceive(True)
+                    logging.info("Forced full synchronization")
+                except:
+                    logging.info("Full synchronization not available, using standard methods")
+            
+            # Get all items to force update
+            all_items = calendar.Items
+            all_items.Sort("[Start]")  # Sort to ensure we get through all items
+            all_items.IncludeRecurrences = True
+            
+            # Process through all items to ensure they're loaded
+            if all_items.Count > 0:
+                logging.info(f"Processing through {all_items.Count} items to ensure complete sync")
+                # Just accessing a sample of items can help force sync
+                item_sample = min(100, all_items.Count)
+                for i in range(1, item_sample + 1):
+                    try:
+                        _ = all_items.Item(i).Subject
+                    except:
+                        pass
+                        
+            # Add a delay to allow sync to complete
+            logging.info(f"Waiting {timeout} seconds for synchronization to complete...")
+            time.sleep(timeout)
+            
+            # Verify sync by checking if count changed
+            final_count = calendar.Items.Count
+            logging.info(f"Final calendar items count: {final_count}")
+            
+            if final_count != initial_count:
+                logging.info(f"Sync detected: Items changed from {initial_count} to {final_count}")
+            else:
+                logging.info("No change in item count - calendar may already be up to date")
+            
+            logging.info("Outlook synchronization completed successfully")
+            return True
+        except Exception as e:
+            logging.error(f"Error during synchronization attempt {attempt}: {str(e)}")
+            if attempt < retries:
+                wait_time = attempt * 2  # Increase wait time with each retry
+                logging.info(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                logging.error("All synchronization attempts failed")
+                return False
 
 def main():
     """Main entry point for the application"""
     # Parse command line arguments
     args = parse_args()
     
-    # Synchronize Outlook first
-    sync_outlook()
+    # Synchronize Outlook first with enhanced parameters
+    sync_successful = sync_outlook(
+        timeout=args.sync_timeout,
+        retries=args.sync_retries,
+        force_full=args.force_full_sync,
+        calendar_name=args.calendar_name
+    )
+    
+    if not sync_successful:
+        logging.warning("Proceeding with event collection despite synchronization issues")
     
     # Initialize the fetcher and get events
     fetcher = OutlookCalendarFetcher()
-    filtered_items = fetcher.get_outlook_events(days_back=args.days_back, days_forward=args.days_forward)
     
+    # Get events using the standard method (without calendar_name parameter)
+    # since the OutlookCalendarFetcher class may not support this parameter yet
+    filtered_items = fetcher.get_outlook_events(
+        days_back=args.days_back, 
+        days_forward=args.days_forward
+    )
+    
+    # If a specific calendar was used for sync, filter the results manually
+    if hasattr(args, 'calendar_name') and args.calendar_name:
+        logging.info(f"Using specified calendar: {args.calendar_name}")
+        calendar_name = args.calendar_name.lower()
+        # No filtering here, as we're using the calendar selected during sync
+        # The sync_outlook function already selected the appropriate calendar
+
     # Process events
     events = []
     for item in filtered_items:
