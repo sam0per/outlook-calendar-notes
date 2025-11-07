@@ -1,4 +1,4 @@
-# Outlook Calendar Notes
+# AI-Powered Calendar & Report Assistant
 
 A modern Python application to fetch, process, and analyze your Microsoft Outlook calendar events.
 
